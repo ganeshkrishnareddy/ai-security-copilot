@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Security Copilot</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0a0f; color: #c9d1d9; font-family: 'SF Mono', Monaco, monospace; height: 100vh; display: flex; flex-direction: column; }
+        
+        .header { padding: 20px 30px; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: 15px; background: #0d1117; }
+        .header .logo { width: 40px; height: 40px; background: linear-gradient(135deg, #00ff88, #58a6ff); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .header h1 { font-size: 20px; color: #00ff88; }
+        .header .badge { background: rgba(0,255,136,0.1); color: #00ff88; padding: 4px 10px; border-radius: 12px; font-size: 11px; border: 1px solid rgba(0,255,136,0.3); }
+        
+        .chat { flex: 1; overflow-y: auto; padding: 20px 30px; }
+        
+        .message { max-width: 800px; margin: 0 auto 20px; display: flex; gap: 12px; animation: fadeIn 0.3s ease; }
+        .message .avatar { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+        .message.user .avatar { background: #21262d; }
+        .message.bot .avatar { background: linear-gradient(135deg, #00ff88, #00cc6a); }
+        .message .content { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 14px 18px; line-height: 1.6; font-size: 14px; }
+        .message.user .content { background: #0d1117; border-color: #30363d; }
+        .message.bot .content { border-color: rgba(0,255,136,0.2); }
+        
+        .code-block { background: #0d1117; border: 1px solid #21262d; border-radius: 8px; padding: 12px; margin: 10px 0; overflow-x: auto; font-size: 12px; }
+        .code-block .lang { color: #58a6ff; font-size: 10px; text-transform: uppercase; margin-bottom: 6px; }
+        .code-block code { color: #c9d1d9; }
+        
+        .severity { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+        .severity.critical { background: rgba(248,81,73,0.2); color: #f85149; }
+        .severity.high { background: rgba(210,153,34,0.2); color: #d29922; }
+        .severity.medium { background: rgba(88,166,255,0.2); color: #58a6ff; }
+        
+        .suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .suggestion { padding: 8px 14px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; font-size: 12px; cursor: pointer; font-family: inherit; color: #c9d1d9; transition: all 0.2s; }
+        .suggestion:hover { border-color: #00ff88; background: rgba(0,255,136,0.05); }
+        
+        .input-area { padding: 20px 30px; border-top: 1px solid #21262d; background: #0d1117; }
+        .input-area .wrapper { max-width: 800px; margin: 0 auto; display: flex; gap: 10px; }
+        .input-area input { flex: 1; padding: 14px 18px; background: #161b22; border: 1px solid #30363d; border-radius: 10px; color: #c9d1d9; font-size: 14px; font-family: inherit; }
+        .input-area input:focus { outline: none; border-color: #00ff88; }
+        .input-area button { padding: 14px 24px; background: linear-gradient(135deg, #00ff88, #00cc6a); border: none; border-radius: 10px; color: #0a0a0f; font-weight: bold; cursor: pointer; font-family: inherit; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes typing { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+        .typing { display: flex; gap: 4px; padding: 8px 0; }
+        .typing span { width: 6px; height: 6px; background: #00ff88; border-radius: 50%; animation: typing 1s infinite; }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">🛡️</div>
+        <h1>AI Security Copilot</h1>
+        <div class="badge">GPT-4 Powered</div>
+    </div>
+    
+    <div class="chat" id="chat">
+        <div class="message bot">
+            <div class="avatar">🛡️</div>
+            <div class="content">
+                Hello! I'm your AI Security Copilot. I can help you with:
+                <br><br>
+                • <strong>Vulnerability Analysis</strong> — analyze code for security flaws<br>
+                • <strong>Fix Suggestions</strong> — get remediation code<br>
+                • <strong>CWE Mapping</strong> — map issues to CWE IDs<br>
+                • <strong>Security Best Practices</strong> — get secure coding guidance
+                <div class="suggestions">
+                    <button class="suggestion" onclick="askSuggestion('Analyze this SQL query for injection')">SQL Injection Check</button>
+                    <button class="suggestion" onclick="askSuggestion('How do I prevent XSS in Node.js?')">XSS Prevention</button>
+                    <button class="suggestion" onclick="askSuggestion('Review this authentication code')">Auth Review</button>
+                    <button class="suggestion" onclick="askSuggestion('Secure file upload best practices')">File Upload Security</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="input-area">
+        <div class="wrapper">
+            <input type="text" id="input" placeholder="Ask about security vulnerabilities, get fix suggestions..." onkeydown="if(event.key==='Enter')send()" />
+            <button onclick="send()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const responses = {
+            'sql': {
+                text: `Found <span class="severity critical">Critical</span> SQL Injection vulnerability:\n\nThe query concatenates user input directly, allowing attackers to manipulate the SQL statement.`,
+                code: `-- Vulnerable Code\nconst query = "SELECT * FROM users WHERE id = " + userId;\n\n-- Fixed Code (Parameterized Query)\nconst query = "SELECT * FROM users WHERE id = $1";\nconst result = await db.query(query, [userId]);`,
+                cwe: 'CWE-89: SQL Injection'
+            },
+            'xss': {
+                text: `Found <span class="severity high">High</span> Cross-Site Scripting risk:\n\nUnescaped user input in HTML templates can execute arbitrary JavaScript.`,
+                code: `// Vulnerable\nres.send('<div>' + userInput + '</div>');\n\n// Fixed (escape output)\nimport escape from 'escape-html';\nres.send('<div>' + escape(userInput) + '</div>');\n\n// Fixed (use template engine with auto-escaping)\n// e.g., EJS, Handlebars, Jinja2`,
+                cwe: 'CWE-79: Cross-site Scripting'
+            },
+            'auth': {
+                text: `Reviewing authentication code for common flaws:\n\n<span class="severity high">High</span> — No rate limiting on login endpoint\n<span class="severity medium">Medium</span> — Password comparison uses == instead of constant-time compare\n<span class="severity medium">Medium</span> — No account lockout after failed attempts`,
+                code: `// Fixed Authentication\nimport rateLimit from 'express-rate-limit';\nimport crypto from 'crypto';\n\nconst loginLimiter = rateLimit({\n  windowMs: 15 * 60 * 1000,\n  max: 5,\n  message: 'Too many login attempts'\n});\n\n// Constant-time comparison\nfunction safeCompare(a, b) {\n  return crypto.timingSafeEqual(\n    Buffer.from(a), Buffer.from(b)\n  );\n}`,
+                cwe: 'CWE-287: Improper Authentication'
+            },
+            'file': {
+                text: `File upload security analysis:\n\n<span class="severity high">High</span> — No file type validation\n<span class="severity critical">Critical</span> — Uploaded files stored in web-accessible directory\n<span class="severity medium">Medium</span> — No file size limit enforced`,
+                code: `// Secure File Upload\nimport multer from 'multer';\n\nconst ALLOWED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];\n\nconst upload = multer({\n  storage: multer.memoryStorage(),\n  limits: { fileSize: 5 * 1024 * 1024 },\n  fileFilter: (req, file, cb) => {\n    if (ALLOWED_TYPES.includes(file.mimetype)) {\n      cb(null, true);\n    } else {\n      cb(new Error('Invalid file type'));\n    }\n  }\n});`,
+                cwe: 'CWE-434: Unrestricted Upload of File with Dangerous Type'
+            },
+            'default': {
+                text: `I can help you analyze that. Here are the key security considerations:\n\n1. <span class="severity medium">Input Validation</span> — Always validate and sanitize user input\n2. <span class="severity high">Authentication</span> — Use strong password hashing (bcrypt/argon2)\n3. <span class="severity medium">Authorization</span> — Implement RBAC with principle of least privilege\n4. <span class="severity critical">Data Protection</span> — Encrypt sensitive data at rest and in transit`,
+                code: `// Security Middleware Stack\napp.use(helmet());           // Security headers\napp.use(cors(corsOptions));  // CORS\napp.use(rateLimiter);        // Rate limiting\napp.use(express.json({ limit: '10kb' })); // Body limit\napp.use(mongoSanitize());    // NoSQL injection prevention\napp.use(xss());              // XSS prevention`,
+                cwe: 'CWE-693: Protection Mechanism Failure'
+            }
+        };
+        
+        function getResponse(input) {
+            const lower = input.toLowerCase();
+            if (lower.includes('sql') || lower.includes('injection') || lower.includes('query')) return responses.sql;
+            if (lower.includes('xss') || lower.includes('cross-site') || lower.includes('script')) return responses.xss;
+            if (lower.includes('auth') || lower.includes('login') || lower.includes('password')) return responses.auth;
+            if (lower.includes('file') || lower.includes('upload')) return responses.file;
+            return responses.default;
+        }
+        
+        function addMessage(content, isUser) {
+            const chat = document.getElementById('chat');
+            const msg = document.createElement('div');
+            msg.className = `message ${isUser ? 'user' : 'bot'}`;
+            msg.innerHTML = `<div class="avatar">${isUser ? '👤' : '🛡️'}</div><div class="content">${content}</div>`;
+            chat.appendChild(msg);
+            chat.scrollTop = chat.scrollHeight;
+        }
+        
+        function addTyping() {
+            const chat = document.getElementById('chat');
+            const msg = document.createElement('div');
+            msg.className = 'message bot';
+            msg.id = 'typing';
+            msg.innerHTML = `<div class="avatar">🛡️</div><div class="content"><div class="typing"><span></span><span></span><span></span></div></div>`;
+            chat.appendChild(msg);
+            chat.scrollTop = chat.scrollHeight;
+        }
+        
+        function removeTyping() {
+            const el = document.getElementById('typing');
+            if (el) el.remove();
+        }
+        
+        function askSuggestion(text) {
+            document.getElementById('input').value = text;
+            send();
+        }
+        
+        function send() {
+            const input = document.getElementById('input');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            addMessage(text, true);
+            input.value = '';
+            addTyping();
+            
+            setTimeout(() => {
+                removeTyping();
+                const resp = getResponse(text);
+                let html = resp.text;
+                if (resp.code) {
+                    html += `<div class="code-block"><div class="lang">Code Fix</div><code><pre>${resp.code}</pre></code></div>`;
+                }
+                if (resp.cwe) html += `<div style="margin-top:8px;color:#58a6ff;font-size:12px">📎 ${resp.cwe}</div>`;
+                html += `<div class="suggestions"><button class="suggestion" onclick="askSuggestion('Tell me more about ${resp.cwe}')">Learn More</button><button class="suggestion" onclick="askSuggestion('Show me related CVEs')">Related CVEs</button></div>`;
+                addMessage(html, false);
+            }, 1200);
+        }
+    </script>
+</body>
+</html>
